@@ -1,24 +1,19 @@
 package server;
 
-import java.util.Arrays;
+
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.*;
 
 
 public class Database {
-    static String[] db;
+    static Map<String, String> db;
 
-    Database(int size){
-        db = new String[size];
-        Arrays.fill(db, "");
+    Database(){
+        db = new HashMap<>();
     }
 
-    public void set(int cell, String value) { db[cell - 1] = value; }
-
-    public Function<Integer, String> get = (cell) -> db[cell - 1];
-
-    public Consumer<Integer> delete = (cell) -> db[cell - 1] = "";
-
-    public int getSize() {
-        return db.length;
-    }
+    public void set(String key, String value) { db.put(key, value); }
+    public Consumer<String> delete = (key) -> db.remove(key);
+    public Function<String, String> get = (key) -> db.get(key);
 }
