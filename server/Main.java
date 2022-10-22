@@ -1,5 +1,7 @@
 package server;
 
+import com.google.gson.Gson;
+
 import java.util.List;
 
 import java.io.IOException;
@@ -13,32 +15,34 @@ import java.net.Socket;
 public class Main {
     private final static int PORT = 1_666;
 
-    final static String EXIT = "exit";
-    final static List<String> validCommands = List.of("set", "get", "delete", EXIT);
-
     final static String OK = "OK";
     final static String ERROR = "ERROR";
+    final static String EXIT = "EXIT";
 
-    final static Database db = new Database(1000);
+    final static List<String> validCommands = List.of("set", "delete", "get", EXIT);
+
+    final static Database db = new Database();
+
+    static String requestJSON;
     static CommandHandler handler;
-
-    static String request;
-    static String reqResult;
+    static String responseJSON;
 
     public static void main(String[] args) {
         try (ServerSocket server = new ServerSocket(PORT)) {
-            System.out.println("Server started!");
             do {
                 try (Socket socket = server.accept();
                      DataInputStream input = new DataInputStream(socket.getInputStream());
-                     DataOutputStream output = new DataOutputStream(socket.getOutputStream())
-                ) {
-                    request = input.readUTF();
-                    handler = new CommandHandler(request);
-                    reqResult = handler.processDataBase();
-                    output.writeUTF(reqResult);
+                     DataOutputStream output = new DataOutputStream(socket.getOutputStream()))
+                {
+                    System.out.println("Server started!");
+
+                    requestJSON = input.readUTF();
+                    handler = new CommandHandler(requestJSON);
+
+                    responseJSON = new Gson().toJson(handler.processDataBase());
+                    output.writeUTF(responseJSON);
                 }
-            } while (!request.equals(EXIT));
+            } while (!handler.command.equalsIgnoreCase(EXIT));
 
         } catch (IOException e) {
             e.printStackTrace();
