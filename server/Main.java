@@ -1,7 +1,8 @@
 package server;
 
-import java.io.IOException;
+import java.util.List;
 
+import java.io.IOException;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 
@@ -10,24 +11,35 @@ import java.net.Socket;
 
 
 public class Main {
-    private final static int PORT = 66_66;
+    private final static int PORT = 1_666;
+
+    final static String EXIT = "exit";
+    final static List<String> validCommands = List.of("set", "get", "delete", EXIT);
+
+    final static String OK = "OK";
+    final static String ERROR = "ERROR";
+
+    final static Database db = new Database(1000);
+    static CommandHandler handler;
+
+    static String request;
+    static String reqResult;
 
     public static void main(String[] args) {
         try (ServerSocket server = new ServerSocket(PORT)) {
             System.out.println("Server started!");
-            try (Socket socket = server.accept();
-                 DataInputStream input = new DataInputStream(socket.getInputStream());
-                 DataOutputStream output = new DataOutputStream(socket.getOutputStream())) {
+            do {
+                try (Socket socket = server.accept();
+                     DataInputStream input = new DataInputStream(socket.getInputStream());
+                     DataOutputStream output = new DataOutputStream(socket.getOutputStream())
+                ) {
+                    request = input.readUTF();
+                    handler = new CommandHandler(request);
+                    reqResult = handler.processDataBase();
+                    output.writeUTF(reqResult);
+                }
+            } while (!request.equals(EXIT));
 
-                String inMsg = input.readUTF();
-                System.out.println(String.join(":\s", "Received", inMsg));
-
-                String requestCell = inMsg.split("\\s*#\\s*")[1];
-                String outMsg = String.join("\s", "A record #", requestCell, "was sent!");
-                output.writeUTF(outMsg);
-                System.out.println(String.join(":\s", "Sent", outMsg));
-
-            }
         } catch (IOException e) {
             e.printStackTrace();
         }
