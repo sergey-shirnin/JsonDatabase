@@ -1,5 +1,6 @@
 package server;
 
+
 import static server.Main.db;
 import static server.Main.validCommands;
 import static server.Main.OK;
@@ -7,40 +8,45 @@ import static server.Main.ERROR;
 
 
 public class CommandHandler {
-    private final String[] userEntryArr;
     private final String command;
-    private final int cell;
+    private Integer cell;
     private String value;
 
-    private String status = OK;
+    String status = OK;
 
-    CommandHandler(String userEntry) {
-        userEntryArr = userEntry.split("\\s+", 3);
-        this.command = userEntryArr[0].toLowerCase();
-        this.cell = Integer.parseInt(userEntryArr[1]);
-        if (userEntryArr.length == 3) { this.value = userEntryArr[2]; }
+    CommandHandler(String request) {
+        String[] requestArr = request.split("\\s+", 3);
+        this.command = requestArr[0];
+        if (requestArr.length > 1) { this.cell = Integer.parseInt(requestArr[1]); }
+        if (requestArr.length > 2) { this.value = requestArr[2]; }
     }
 
+
     private void setStatus() {
-        if (Math.max(1, cell) != Math.min(cell, db.getLength())
-                || "get".equalsIgnoreCase(command) && db.get.apply(cell).isEmpty()
+        if (null != cell && Math.max(1, cell) != Math.min(cell, db.getSize())
+                || null != cell && "get".equalsIgnoreCase(command) && db.get.apply(cell).isEmpty()
                 || !validCommands.contains(command)) {
             this.status = ERROR;
         }
     }
 
-    public void processDataBase() {
+    public String processDataBase() {
         setStatus();
         if (status.equals(OK)) {
             switch (command) {
-                case "get" -> System.out.println(db.get.apply(cell));
-                case "set" -> db.set(cell, value);
-                case "delete" -> db.delete.accept(cell);
+                case "get" -> {
+                    return db.get.apply(cell);
+                }
+                case "set" ->  {
+                    db.set(cell, value);
+                    return status;
+                }
+                case "delete" -> {
+                    db.delete.accept(cell);
+                    return status;
+                }
             }
         }
-
-        if (!"get".equals(command) || !OK.equals(status)) {
-            System.out.println(status);
-        }
+        return status;
     }
 }
