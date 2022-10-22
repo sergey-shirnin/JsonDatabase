@@ -18,9 +18,7 @@ public class Database {
 
     public Consumer<Integer> delete = (cell) -> db[cell - 1] = "";
 
-    public int getLength() {
+    public int getSize() {
         return db.length;
     }
-
-
 }
