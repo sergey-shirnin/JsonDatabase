@@ -1,6 +1,7 @@
 package client;
 
 import com.beust.jcommander.JCommander;
+import com.google.gson.Gson;
 
 import java.io.IOException;
 import java.io.DataInputStream;
@@ -24,14 +25,12 @@ public class Main {
         {
             System.out.println("Client started!");
 
-            String outMsg = jArgs.getRequestString();
+            String outMsg = new Gson().toJson(jArgs);
             output.writeUTF(outMsg);
             System.out.println(String.join(":\s", "Sent", outMsg));
 
             String inMsg = input.readUTF();
             System.out.println(String.join(":\s", "Received", inMsg));
-
-
         } catch (IOException e) {
             e.printStackTrace();
         }
