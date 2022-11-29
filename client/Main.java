@@ -1,11 +1,11 @@
 package client;
 
 import com.beust.jcommander.JCommander;
-import com.google.gson.Gson;
+import com.google.gson.*;
 
 import java.io.*;
-
 import java.net.Socket;
+
 
 public class Main {
 
@@ -14,6 +14,7 @@ public class Main {
 
     final static String jsonPath = System.getProperty("user.dir") + "/JSON Database/task/src/client/data/";
     final static String jsonPathTest = System.getProperty("user.dir") + "/src/client/data/";
+    final static String path = jsonPathTest;
 
     static String outMsg;
 
@@ -23,14 +24,11 @@ public class Main {
 
         try (Socket socket = new Socket(SERVER_IP, SERVER_PORT);
              DataInputStream input = new DataInputStream(socket.getInputStream());
-             DataOutputStream output = new DataOutputStream(socket.getOutputStream()))
-        {
+             DataOutputStream output = new DataOutputStream(socket.getOutputStream())) {
             System.out.println("Client started!");
 
             if (null == jArgs.getType()) {
-                BufferedReader reader = new BufferedReader(new FileReader(
-                        jsonPathTest + jArgs.getFileName()));
-                outMsg = reader.readLine();
+                outMsg = new BufferedReader(new FileReader(path + jArgs.getFileName())).readLine();
             } else {
                 outMsg = new Gson().toJson(jArgs);
             }
@@ -40,8 +38,9 @@ public class Main {
 
             String inMsg = input.readUTF();
             System.out.println(String.join(":\s", "Received", inMsg));
+
         } catch (IOException e) {
-            System.out.printf("Client failed at initiation!\nMsg:%s%n", e.getMessage());
+            System.out.printf("Client failed at execution!\nMsg:%s%n", e.getMessage());
         }
     }
 }
