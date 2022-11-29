@@ -2,24 +2,21 @@ package client;
 
 import com.beust.jcommander.Parameter;
 
-import java.util.Objects;
-import java.util.StringJoiner;
-import java.util.stream.Stream;
-
 public class Args {
+@Parameter(names = {"--input", "-in"})
+private String fileName;
+@Parameter(names = {"--type", "-t"})
+private String type;
+@Parameter(names = {"--key", "-k"})
+private String key;
+@Parameter(names = {"--value", "-v"})
+private String value;
 
-    @Parameter(names = {"--type", "-t"}, required = true)
-    private String reqType;
-    @Parameter(names = {"--cell", "-i"})
-    private String cell;
-    @Parameter(names = {"--msg", "-m"})
-    private String cellValue;
+public String getFileName() { return fileName; }
 
+public String getType() { return type; }
 
+public String getKey() { return key; }
 
-    public String getRequestString() {
-        StringJoiner joiner = new StringJoiner("\s");
-        Stream.of(reqType, cell, cellValue).filter(Objects::nonNull).forEach(joiner::add);
-        return joiner.toString();
-    }
+public String getValue() { return value; }
 }
