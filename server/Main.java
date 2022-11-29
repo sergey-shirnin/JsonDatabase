@@ -1,51 +1,62 @@
 package server;
 
-import com.google.gson.Gson;
-
-import java.util.List;
-
 import java.io.IOException;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 
 import java.net.ServerSocket;
 import java.net.Socket;
 
+import java.util.List;
+import java.util.concurrent.*;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class Main {
     private final static int PORT = 1_666;
 
-    final static String OK = "OK";
-    final static String ERROR = "ERROR";
-    final static String EXIT = "EXIT";
-
-    final static List<String> validCommands = List.of("set", "delete", "get", EXIT);
+    final static String dbPath = System.getProperty("user.dir") + "/JSON Database/task/src/server/data/db.json";
+    final static String dbPathTest = System.getProperty("user.dir") + "/src/server/data/db.json";
 
     final static Database db = new Database();
 
-    static String requestJSON;
-    static CommandHandler handler;
-    static String responseJSON;
+    final static int awaitTime = 800;
+
+    static ReadWriteLock lock = new ReentrantReadWriteLock();
+    static Lock readLock = lock.readLock();
+    static Lock writeLock = lock.writeLock();
+
+    static int threads = Runtime.getRuntime().availableProcessors();
+    static ExecutorService executor = Executors.newFixedThreadPool(threads);
+    static List<Runnable> unfinishedTasks;
 
     public static void main(String[] args) {
         try (ServerSocket server = new ServerSocket(PORT)) {
-            do {
-                try (Socket socket = server.accept();
-                     DataInputStream input = new DataInputStream(socket.getInputStream());
-                     DataOutputStream output = new DataOutputStream(socket.getOutputStream()))
-                {
-                    System.out.println("Server started!");
+            System.out.printf("Server started @ %d threads!%n", threads);
+            while (!executor.isShutdown()) {
+                Socket socket = server.accept();
+                System.out.println("New client session started!");
 
-                    requestJSON = input.readUTF();
-                    handler = new CommandHandler(requestJSON);
+                if (executor.submit(new Session(socket)).get()) {
+                    executor.shutdown();
 
-                    responseJSON = new Gson().toJson(handler.processDataBase());
-                    output.writeUTF(responseJSON);
+                    if (!executor.awaitTermination(awaitTime, TimeUnit.MILLISECONDS)) {
+                        unfinishedTasks = executor.shutdownNow();
+                        System.out.println("Some requests not processed before termination:" +
+                                "\n-> " + unfinishedTasks);
+                    } else {
+                        System.out.println("All requests processed before termination");
+                    }
                 }
-            } while (!handler.command.equalsIgnoreCase(EXIT));
-
+            }
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.printf("Server set up failed!\nMsg:%s%n",
+                    e.getMessage());
+        } catch (ExecutionException e) {
+            System.out.printf("Client session failed at execution!\nMsg:%s%n",
+                    e.getMessage());
+        } catch (InterruptedException e) {
+            System.out.printf("Client session interrupted at execution!\nMsg:%s%n",
+                    e.getMessage());
         }
     }
 }
