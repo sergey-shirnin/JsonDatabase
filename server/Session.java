@@ -2,6 +2,7 @@ package server;
 
 import client.Args;
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -9,16 +10,13 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 import java.net.Socket;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
-import static server.Main.readLock;
-import static server.Main.writeLock;
-import static server.Main.db;
+import static server.Main.*;
 
 
-public class Session implements Callable<Boolean> {
+public class Session implements Callable<String> {
 
     private final Socket socket;
 
@@ -26,68 +24,71 @@ public class Session implements Callable<Boolean> {
         this.socket = socket;
     }
 
-    final static Map<String, String> ERROR = Map.of(
-            "response", "ERROR",
-            "reason", "No such key");
+    final static Gson gson = new Gson();
+
     final static Map<String, String> OK = Map.of(
             "response", "OK");
+    final static JsonObject ERROR = gson.toJsonTree(Map.of(
+            "response", "ERROR",
+            "reason", "No such key")).getAsJsonObject();
 
-    final static String EXIT = "exit";
+    String serverShutDownMsg = "keep running";
 
-    static boolean isClosedByClient = false;
+    static Args request = null;
 
-    @Override
-    public Boolean call() {
-        Map<String, String> response = ERROR;
+    public String call() {
+        JsonObject response = ERROR;
 
         try (DataInputStream input = new DataInputStream(socket.getInputStream());
              DataOutputStream output = new DataOutputStream(socket.getOutputStream()))
         {
-            Args request = new Gson().fromJson(input.readUTF(), Args.class);
+            String inputString = input.readUTF();
+
+            request = new Gson().fromJson(inputString, Args.class);
 
             switch (request.getType()) {
                 // GET
                 case "get" -> {
                     readLock.lock();
-                    if (db.containsKey.test(request.getKey())) {
-                        response = new HashMap<>(OK);
-                        response.put("value", db.get.apply(request.getKey()));
+                    if (db.hasKey.test(request.getKey())) {
+                        response = gson.toJsonTree(OK).getAsJsonObject();
+                        response.add("value", db.get.apply(request.getKey()));
                     }
                     readLock.unlock();
+                }
+
+                // DELETE
+                case "delete" -> {
+                    writeLock.lock();
+                    if (db.hasKey.test(request.getKey())) {
+                        db.delete.accept(request.getKey());
+                        response = gson.toJsonTree(OK).getAsJsonObject();
+                    }
+                    writeLock.unlock();
                 }
 
                 // SET
                 case "set" -> {
                     writeLock.lock();
                     db.set.accept(request.getKey(), request.getValue());
-                    response = OK;
-                    writeLock.unlock();
-                }
-
-                // DELETE
-                case "delete" -> {
-                    writeLock.lock();
-                    if (db.containsKey.test(request.getKey())) {
-                        db.delete.accept(request.getKey());
-                        response = OK;
-                    }
+                    response = gson.toJsonTree(OK).getAsJsonObject();
                     writeLock.unlock();
                 }
 
                 // TERMINATE SESSION
                 case EXIT -> {
-                    response = OK;
-                    isClosedByClient = true;
+                    response = gson.toJsonTree(OK).getAsJsonObject();
+                    serverShutDownMsg = EXIT;
                 }
             }
 
             // SEND TO CLIENT
-            output.writeUTF(new Gson().toJson(response));
+            output.writeUTF(gson.toJson(response));
 
         } catch (IOException e) {
             System.out.printf("Client session failed at initiation!\nMsg:%s%n", e.getMessage());
         }
 
-        return isClosedByClient;
+        return serverShutDownMsg;
     }
 }
